@@ -55,17 +55,43 @@ rtk gain  # Must show token savings stats (not "command not found")
 ### Alternative: Manual Installation
 
 ```bash
-# From rtk-ai repository (NOT reachingforthejack!)
-cargo install --git https://github.com/rtk-ai/rtk
-
-# OR (if published and correct on crates.io)
-cargo install rtk
+# From fork repository (Windows-capable, includes PowerShell hook)
+cargo install --git https://github.com/yeung66/rtk
 
 # ALWAYS VERIFY after installation
 rtk gain  # MUST show token savings, not "command not found"
 ```
 
 ⚠️ **WARNING**: `cargo install rtk` from crates.io might install the wrong package. Always verify with `rtk gain`.
+
+### Windows Installation
+
+Windows is fully supported via Cargo. This fork adds a native PowerShell hook —
+no WSL or bash required.
+
+**Requirements**: Rust toolchain (`rustup`) + PowerShell 5.1+ (built into Windows 10/11).
+
+```powershell
+# 1. Install binary
+cargo install --git https://github.com/yeung66/rtk
+
+# 2. Verify
+rtk --version  # rtk 0.30.0
+rtk gain       # token savings stats
+
+# 3. Install hook (patches settings.json automatically)
+rtk init -g --auto-patch
+
+# 4. Restart Claude Code
+```
+
+`rtk init -g` on Windows installs `~/.claude/hooks/rtk-rewrite.ps1` and registers
+it in `settings.json` as:
+```
+powershell.exe -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "C:\Users\<you>\.claude\hooks\rtk-rewrite.ps1"
+```
+
+No pre-built Windows binaries are provided for this fork. Use `cargo install --git` above.
 
 ## Project Initialization
 
@@ -93,7 +119,8 @@ rtk gain  # MUST show token savings, not "command not found"
 
 ```bash
 rtk init -g
-# → Installs hook to ~/.claude/hooks/rtk-rewrite.sh
+# → Installs hook to ~/.claude/hooks/rtk-rewrite.sh  (macOS/Linux)
+#                  or ~/.claude/hooks/rtk-rewrite.ps1 (Windows)
 # → Creates ~/.claude/RTK.md (10 lines, meta commands only)
 # → Adds @RTK.md reference to ~/.claude/CLAUDE.md
 # → Prompts: "Patch settings.json? [y/N]"
@@ -179,7 +206,7 @@ rtk init --show
 ### First-Time User (Recommended)
 ```bash
 # 1. Install RTK
-cargo install --git https://github.com/rtk-ai/rtk
+cargo install --git https://github.com/yeung66/rtk
 rtk gain  # Verify (must show token stats)
 
 # 2. Setup with prompts

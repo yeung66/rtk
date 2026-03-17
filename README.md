@@ -77,20 +77,42 @@ curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/instal
 ### Cargo
 
 ```bash
-cargo install --git https://github.com/rtk-ai/rtk
+cargo install --git https://github.com/yeung66/rtk
 ```
+
+### Windows (Cargo + PowerShell Hook)
+
+Windows is supported via Cargo. This fork adds a native PowerShell hook so
+command interception works out of the box — no WSL required.
+
+**Requirements**: Rust toolchain (`rustup`) and PowerShell 5.1+ (built into Windows 10/11).
+
+```powershell
+# 1. Install binary
+cargo install --git https://github.com/yeung66/rtk
+
+# 2. Install hook (PowerShell, global)
+rtk init -g --auto-patch
+
+# 3. Restart Claude Code, then test
+git status   # Automatically rewritten to rtk git status
+```
+
+`rtk init -g` installs `~/.claude/hooks/rtk-rewrite.ps1` and patches
+`settings.json` with a `powershell.exe` PreToolUse hook entry automatically.
 
 ### Pre-built Binaries
 
 Download from [releases](https://github.com/rtk-ai/rtk/releases):
 - macOS: `rtk-x86_64-apple-darwin.tar.gz` / `rtk-aarch64-apple-darwin.tar.gz`
 - Linux: `rtk-x86_64-unknown-linux-musl.tar.gz` / `rtk-aarch64-unknown-linux-gnu.tar.gz`
-- Windows: `rtk-x86_64-pc-windows-msvc.zip`
+
+> Pre-built Windows binaries are not available for this fork. Use `cargo install` above.
 
 ### Verify Installation
 
 ```bash
-rtk --version   # Should show "rtk 0.28.2"
+rtk --version   # Should show "rtk 0.30.0"
 rtk gain        # Should show token savings stats
 ```
 
@@ -100,9 +122,10 @@ rtk gain        # Should show token savings stats
 
 ```bash
 # 1. Install hook for Claude Code (recommended)
-rtk init --global
-# Follow instructions to register in ~/.claude/settings.json
-# Claude Code only by default (use --opencode for OpenCode)
+rtk init -g --auto-patch
+# Installs hook + patches ~/.claude/settings.json automatically
+# Windows: uses PowerShell hook (rtk-rewrite.ps1)
+# macOS/Linux: uses bash hook (rtk-rewrite.sh)
 
 # 2. Restart Claude Code, then test
 git status  # Automatically rewritten to rtk git status
