@@ -2066,4 +2066,40 @@ More notes
         let removed = remove_hook_from_json(&mut json_content);
         assert!(!removed);
     }
+
+    #[test]
+    fn test_remove_ps1_hook_from_json() {
+        let mut json_content: serde_json::Value = serde_json::from_str(r#"{
+        "hooks": {
+            "PreToolUse": [{
+                "matcher": "Bash",
+                "hooks": [{"type": "command", "command": "powershell.exe -File C:\\Users\\test\\.claude\\hooks\\rtk-rewrite.ps1"}]
+            }]
+        }
+    }"#).unwrap();
+
+        let removed = remove_hook_from_json(&mut json_content);
+        assert!(removed, "should have removed the .ps1 hook entry");
+
+        let pre_tool_use = json_content["hooks"]["PreToolUse"].as_array().unwrap();
+        assert!(
+            pre_tool_use.is_empty(),
+            "PreToolUse array should be empty after removal"
+        );
+    }
+
+    #[test]
+    fn test_hook_already_present_ps1() {
+        let json: serde_json::Value = serde_json::from_str(r#"{
+        "hooks": {
+            "PreToolUse": [{
+                "matcher": "Bash",
+                "hooks": [{"type": "command", "command": "powershell.exe -File C:\\Users\\test\\.claude\\hooks\\rtk-rewrite.ps1"}]
+            }]
+        }
+    }"#).unwrap();
+
+        let hook_cmd = "powershell.exe -File C:\\Users\\test\\.claude\\hooks\\rtk-rewrite.ps1";
+        assert!(hook_already_present(&json, hook_cmd));
+    }
 }
