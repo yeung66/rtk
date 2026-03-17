@@ -7,6 +7,7 @@ use tempfile::NamedTempFile;
 use crate::integrity;
 
 // Embedded hook script (guards before set -euo pipefail)
+#[cfg(unix)]
 const REWRITE_HOOK: &str = include_str!("../hooks/rtk-rewrite.sh");
 
 #[cfg(not(unix))]
@@ -35,6 +36,7 @@ schema_version = 1
 "#;
 
 /// Template for user-global filters (~/.config/rtk/filters.toml).
+#[cfg(unix)]
 const FILTERS_GLOBAL_TEMPLATE: &str = r#"# User-global RTK filters — apply to all your projects.
 # Project-local .rtk/filters.toml takes precedence over these.
 # Docs: https://github.com/rtk-ai/rtk#custom-filters
@@ -428,6 +430,7 @@ fn prompt_user_consent(settings_path: &Path) -> Result<bool> {
 }
 
 /// Print manual instructions for settings.json patching
+#[cfg(unix)]
 fn print_manual_instructions(hook_path: &Path, include_opencode: bool) {
     println!("\n  MANUAL STEP: Add this to ~/.claude/settings.json:");
     println!("  {{");
@@ -629,90 +632,17 @@ pub fn uninstall(global: bool, verbose: u8) -> Result<()> {
 
 /// Orchestrator: patch settings.json with RTK hook
 /// Handles reading, checking, prompting, merging, backing up, and atomic writing
+#[cfg(unix)]
 fn patch_settings_json(
     hook_path: &Path,
     mode: PatchMode,
     verbose: u8,
     include_opencode: bool,
 ) -> Result<PatchResult> {
-    let claude_dir = resolve_claude_dir()?;
-    let settings_path = claude_dir.join("settings.json");
     let hook_command = hook_path
         .to_str()
         .context("Hook path contains invalid UTF-8")?;
-
-    // Read or create settings.json
-    let mut root = if settings_path.exists() {
-        let content = fs::read_to_string(&settings_path)
-            .with_context(|| format!("Failed to read {}", settings_path.display()))?;
-
-        if content.trim().is_empty() {
-            serde_json::json!({})
-        } else {
-            serde_json::from_str(&content)
-                .with_context(|| format!("Failed to parse {} as JSON", settings_path.display()))?
-        }
-    } else {
-        serde_json::json!({})
-    };
-
-    // Check idempotency
-    if hook_already_present(&root, &hook_command) {
-        if verbose > 0 {
-            eprintln!("settings.json: hook already present");
-        }
-        return Ok(PatchResult::AlreadyPresent);
-    }
-
-    // Handle mode
-    match mode {
-        PatchMode::Skip => {
-            print_manual_instructions(hook_path, include_opencode);
-            return Ok(PatchResult::Skipped);
-        }
-        PatchMode::Ask => {
-            if !prompt_user_consent(&settings_path)? {
-                print_manual_instructions(hook_path, include_opencode);
-                return Ok(PatchResult::Declined);
-            }
-        }
-        PatchMode::Auto => {
-            // Proceed without prompting
-        }
-    }
-
-    // Deep-merge hook
-    insert_hook_entry(&mut root, &hook_command);
-
-    // Backup original
-    if settings_path.exists() {
-        let backup_path = settings_path.with_extension("json.bak");
-        fs::copy(&settings_path, &backup_path)
-            .with_context(|| format!("Failed to backup to {}", backup_path.display()))?;
-        if verbose > 0 {
-            eprintln!("Backup: {}", backup_path.display());
-        }
-    }
-
-    // Atomic write
-    let serialized =
-        serde_json::to_string_pretty(&root).context("Failed to serialize settings.json")?;
-    atomic_write(&settings_path, &serialized)?;
-
-    println!("\n  settings.json: hook added");
-    if settings_path.with_extension("json.bak").exists() {
-        println!(
-            "  Backup: {}",
-            settings_path.with_extension("json.bak").display()
-        );
-    }
-    if include_opencode {
-        println!("  Restart Claude Code and OpenCode. Test with: git status");
-    } else {
-        println!("  Restart Claude Code. Test with: git status");
-    }
-
-    Ok(PatchResult::Patched)
+    patch_settings_json_str(hook_command, mode, verbose, include_opencode)
 }
 
 /// Patch settings.json using a pre-built hook command string (Windows path).
@@ -773,6 +703,12 @@ fn patch_settings_json_str(
     atomic_write(&settings_path, &serialized)?;
 
     println!("\n  settings.json: hook added");
+    if settings_path.with_extension("json.bak").exists() {
+        println!(
+            "  Backup: {}",
+            settings_path.with_extension("json.bak").display()
+        );
+    }
     if include_opencode {
         println!("  Restart Claude Code and OpenCode. Test with: git status");
     } else {
@@ -795,7 +731,6 @@ fn clean_double_blanks(content: &str) -> String {
         if line.trim().is_empty() {
             // Count consecutive blank lines
             let mut blank_count = 0;
-            let start = i;
             while i < lines.len() && lines[i].trim().is_empty() {
                 blank_count += 1;
                 i += 1;
@@ -1058,6 +993,7 @@ fn generate_project_filters_template(verbose: u8) -> Result<()> {
 }
 
 /// Generate ~/.config/rtk/filters.toml template if not present.
+#[cfg(unix)]
 fn generate_global_filters_template(verbose: u8) -> Result<()> {
     let config_dir = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from(".config"));
     let rtk_dir = config_dir.join("rtk");
@@ -1679,7 +1615,6 @@ fn run_opencode_only_mode(verbose: u8) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
     use tempfile::TempDir;
 
     #[test]
@@ -1717,6 +1652,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_hook_has_guards() {
         assert!(REWRITE_HOOK.contains("command -v rtk"));
         assert!(REWRITE_HOOK.contains("command -v jq"));
