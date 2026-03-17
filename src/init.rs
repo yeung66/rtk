@@ -1983,11 +1983,6 @@ More notes
         let parsed: serde_json::Value = serde_json::from_str(original).unwrap();
         let serialized = serde_json::to_string(&parsed).unwrap();
 
-        // Keys should appear in same order
-        let original_keys: Vec<&str> = original.split("\"").filter(|s| s.contains(":")).collect();
-        let serialized_keys: Vec<&str> =
-            serialized.split("\"").filter(|s| s.contains(":")).collect();
-
         // Just check that keys exist (preserve_order doesn't guarantee exact order in nested objects)
         assert!(serialized.contains("\"env\""));
         assert!(serialized.contains("\"permissions\""));
