@@ -21,14 +21,14 @@ if ($Cmd -match "<<") { exit 0 }
 
 # Rewrite via rtk — single source of truth for all command mappings.
 # Non-zero exit = no RTK equivalent, pass through unchanged.
-$Rewritten = & rtk rewrite $Cmd 2>$null
+$Rewritten = & rtk rewrite "$Cmd" 2>$null
 if ($LASTEXITCODE -ne 0) { exit 0 }
 
 # If output is identical, command was already using RTK — nothing to do.
 if ($Cmd -eq $Rewritten) { exit 0 }
 
 # Build the updated tool_input with all original fields preserved, only command changed.
-$UpdatedInput = $InputData.tool_input.PSObject.Copy()
+$UpdatedInput = $InputData.tool_input | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 $UpdatedInput.command = $Rewritten
 
 # Output the rewrite instruction in Claude Code hook format.
