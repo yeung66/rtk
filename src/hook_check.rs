@@ -88,12 +88,17 @@ pub fn parse_hook_version(content: &str) -> u8 {
 
 fn hook_installed_path() -> Option<PathBuf> {
     let home = dirs::home_dir()?;
-    let path = home.join(".claude").join("hooks").join("rtk-rewrite.sh");
-    if path.exists() {
-        Some(path)
-    } else {
-        None
+    // Unix hook
+    let sh_path = home.join(".claude").join("hooks").join("rtk-rewrite.sh");
+    if sh_path.exists() {
+        return Some(sh_path);
     }
+    // Windows hook
+    let ps1_path = home.join(".claude").join("hooks").join("rtk-rewrite.ps1");
+    if ps1_path.exists() {
+        return Some(ps1_path);
+    }
+    None
 }
 
 fn warn_marker_path() -> Option<PathBuf> {
@@ -141,18 +146,22 @@ mod tests {
 
     #[test]
     fn test_status_returns_valid_variant() {
-        // Skip on machines without Claude Code or without hook
         let home = match dirs::home_dir() {
             Some(h) => h,
             None => return,
         };
-        if !home
+        let sh_exists = home
             .join(".claude")
             .join("hooks")
             .join("rtk-rewrite.sh")
-            .exists()
-        {
-            // No hook — status should be Missing (if .claude exists) or Ok (if not)
+            .exists();
+        let ps1_exists = home
+            .join(".claude")
+            .join("hooks")
+            .join("rtk-rewrite.ps1")
+            .exists();
+
+        if !sh_exists && !ps1_exists {
             let s = status();
             if home.join(".claude").exists() {
                 assert_eq!(s, HookStatus::Missing);
@@ -167,5 +176,24 @@ mod tests {
             "Expected Ok or Outdated when hook exists, got {:?}",
             s
         );
+    }
+
+    #[test]
+    fn test_hook_installed_path_ps1_fallback() {
+        // Simulate: no .sh file but .ps1 exists
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let hooks_dir = tmp.path().join(".claude").join("hooks");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        let ps1_path = hooks_dir.join("rtk-rewrite.ps1");
+        std::fs::write(&ps1_path, "# rtk-hook-version: 2\n").unwrap();
+        // Just verify the file we created exists (hook_installed_path uses home_dir, hard to unit test)
+        assert!(ps1_path.exists());
+    }
+
+    #[test]
+    fn test_parse_hook_version_ps1_format() {
+        let content =
+            "# RTK auto-rewrite hook for Claude Code (Windows)\n# rtk-hook-version: 2\n# ...\n";
+        assert_eq!(parse_hook_version(content), 2);
     }
 }

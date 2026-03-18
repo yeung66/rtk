@@ -178,10 +178,15 @@ fn read_stored_hash(path: &Path) -> Result<String> {
     Ok(hash.to_string())
 }
 
-/// Resolve the default hook path (~/.claude/hooks/rtk-rewrite.sh)
+/// Resolve the default hook path (~/.claude/hooks/rtk-rewrite.sh on Unix,
+/// rtk-rewrite.ps1 on Windows)
 pub fn resolve_hook_path() -> Result<PathBuf> {
+    #[cfg(not(target_os = "windows"))]
+    let hook_name = "rtk-rewrite.sh";
+    #[cfg(target_os = "windows")]
+    let hook_name = "rtk-rewrite.ps1";
     dirs::home_dir()
-        .map(|h| h.join(".claude").join("hooks").join("rtk-rewrite.sh"))
+        .map(|h| h.join(".claude").join("hooks").join(hook_name))
         .context("Cannot determine home directory. Is $HOME set?")
 }
 
